@@ -1,0 +1,39 @@
+ANSWER KEY (do not share with students)
+=======================================
+Seed: 2 | customers: 60000 | enrolled abandoners: 8120
+Enrolled with full 7-day window before export: 7622 (treatment 6856, holdout 766)
+
+Clean intention-to-treat estimate (7-day order rate, full-window cohort,
+orders of any status counted):
+  Treatment: 29.27% | Holdout: 26.76% | Difference: 2.51 pp
+True average effect in treatment group: 2.72 pp (logit effect 0.16,
+  diluted by about 4% bounced emails, which stay in the treatment group)
+Power of this design (two-sided, alpha = .05): 37%
+
+Net revenue per enrolled customer (completed orders within 7 days):
+  Treatment: EUR 19.96 | Holdout: EUR 18.33 | Difference: EUR 1.63
+
+Vendor dashboard claims:
+  Conversion rate among clickers: 77.4%
+  Conversion rate among openers: 35.8%
+  'Uplift' vs site-wide session conversion: 10.0x
+  Attributed revenue: EUR 146,958
+
+Traps built into the raw data:
+  - Abandoners have high intent: the holdout also converts at a high rate
+  - Clickers are self-selected buyers; open rates inflated (Apple MPP)
+  - Vendor attributes any purchase within 30 days after an open, and uses
+    cart value instead of actual order value as revenue
+  - Site-wide session conversion is the wrong benchmark
+  - Abandonments in the last days of October lack a full 7-day window
+  - Orders are in local time (Europe/Berlin), sessions in UTC
+  - Orders use ';' and German number format; status labels in German/English
+  - Cancelled and returned orders, duplicate order lines, TEST_ accounts
+  - Bot sessions (no customer id, many pages, very short duration)
+  - Mixed timestamp formats (ISO and Unix epoch) in sessions after Oct 15
+  - Inconsistent and missing group labels, duplicated enrollments with
+    conflicting labels (delivery_status reveals the true assignment);
+    holdout engagement sometimes 0 instead of missing
+  - Duplicate customers and sessions; messy country, age, device values
+  - Irrelevant variables: browser, page load time, gender, template version,
+    payment method, discount code, etc.
