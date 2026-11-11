@@ -1,1 +1,217 @@
-Fatal error: cannot open file 'scripts/03_power_simulation.log': No such file or directory
+
+R version 4.6.1 (2026-06-24) -- "Happy Hop"
+Copyright (C) 2026 The R Foundation for Statistical Computing
+Platform: aarch64-apple-darwin23
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> # This script asks how large the holdout must be. It runs a power analysis by
+> # simulation, in the spirit of Daniel Lakens: simulate many experiments under
+> # an assumed true effect, test each one, and count how often the test is
+> # significant. It proceeds in four steps:
+> #   1. One experiment, written out step by step
+> #   2. Power of the design we actually ran (10% holdout)
+> #   3. Winner's curse: significant results overestimate the effect
+> #   4. Power for different sample sizes and holdout shares
+> #
+> # Input:  outputs/results/analysis_results.rds
+> # Output: outputs/results/power_results.rds
+> 
+> # Packages -----
+> # groundhog loads the package versions that were available on the given date,
+> # so that everyone runs the code with exactly the same versions.
+> if (!requireNamespace("groundhog", quietly = TRUE)) {
++   install.packages("groundhog")
++ }
+groundhog says: No default repository found, setting to 'http://cran.r-project.org/'
+> pkgs <- c("here", # makes it easier to use relative file paths (i.e., relative to the root, where .Rproj is located)
++           "data.table") # an alternative to base R and tidyverse which I like
+> groundhog::groundhog.library(pkg = pkgs, date = "2026-06-30") # R-4.6.1
+[36mSuccessfully attached 'here_1.0.2'[0m
+[36mSuccessfully attached 'data.table_1.18.4'[0m
+[34m2 startup message(s) were suppressed, run show_startup() to see them[0m
+> rm(pkgs)
+> 
+> 
+> # Prep -----
+> dir.create(path = here("outputs", "results"), recursive = TRUE, showWarnings = FALSE)
+> 
+> # set.seed() makes the random numbers reproducible: every run gives the same results
+> set.seed(seed = 42)
+> 
+> 
+> # Read data -----
+> # We take the baseline order rate and the sample size from our own analysis
+> res <- readRDS(file = here("outputs", "results", "analysis_results.rds"))
+> 
+> 
+> # Assumptions -----
+> p_holdout  <- res$itt$holdout_rate      # 7-day order rate without email (observed)
+> n_ours     <- res$cohort$n_analysis     # size of our analysis sample
+> share_ours <- 0.10                      # holdout share in our campaign
+> # The lift is an assumption, NOT the effect we observed: it is the smallest
+> # effect we would care about. Using the observed effect instead ("post-hoc
+> # power") adds no information beyond the p-value.
+> lift   <- 0.025                         # 2.5 percentage points
+> alpha  <- 0.05                          # significance level
+> n_sims <- 10000                         # number of simulated experiments
+> 
+> p_holdout
+[1] 0.267624
+> n_ours
+[1] 7621
+> 
+> 
+> # 1. One simulated experiment, step by step -----
+> # simulate_one() creates one fake experiment: it assigns customers to holdout
+> # and treatment, draws for each customer whether they order (with a higher
+> # probability under treatment), and tests the difference.
+> simulate_one <- function(n_total, holdout_share, p0, delta) {
++   n_c <- round(x = n_total * holdout_share)        # holdout customers
++   n_t <- n_total - n_c                             # treatment customers
++   d <- data.table(treated = rep(x = c(0L, 1L), times = c(n_c, n_t)))
++   d[, ordered := rbinom(n = .N, size = 1, prob = p0 + delta * treated)]
++   test <- prop.test(x = c(d[treated == 1, sum(ordered)], d[treated == 0, sum(ordered)]),
++                     n = c(n_t, n_c), correct = FALSE)
++   c(estimate = d[treated == 1, mean(ordered)] - d[treated == 0, mean(ordered)],
++     p_value  = test$p.value)
++ }
+> 
+> # Transparent but slow: 1,000 experiments with our actual design.
+> # replicate() repeats the simulation; t() turns the result into one row per experiment.
+> slow <- t(replicate(n = 1000, expr = simulate_one(n_total = n_ours, holdout_share = share_ours,
++                                                   p0 = p_holdout, delta = lift)))
+> head(slow)
+         estimate     p_value
+[1,]  0.030286089 0.081998914
+[2,]  0.052742551 0.002246550
+[3,]  0.053763682 0.001780197
+[4,]  0.027370212 0.115056739
+[5,] -0.003979866 0.819105735
+[6,]  0.011621989 0.504625299
+> power_slow <- mean(slow[, "p_value"] < alpha)    # share of significant experiments
+> power_slow
+[1] 0.285
+> 
+> 
+> # 2. Fast version: same logic, but it draws the number of orders per group directly -----
+> simulate_many <- function(n_total, holdout_share, p0, delta, sims = n_sims) {
++   n_c <- round(x = n_total * holdout_share)
++   n_t <- n_total - n_c
++   x_c <- rbinom(n = sims, size = n_c, prob = p0)            # orders in the holdout
++   x_t <- rbinom(n = sims, size = n_t, prob = p0 + delta)    # orders under treatment
++   r_c <- x_c / n_c
++   r_t <- x_t / n_t
++   r_pool <- (x_c + x_t) / n_total
++   z <- (r_t - r_c) / sqrt(r_pool * (1 - r_pool) * (1 / n_c + 1 / n_t))
++   data.table(estimate = r_t - r_c, p_value = 2 * pnorm(q = -abs(z)))
++ }
+> 
+> ours <- simulate_many(n_total = n_ours, holdout_share = share_ours, p0 = p_holdout, delta = lift)
+> ours[, significant := p_value < alpha & estimate > 0]
+> power_ours <- ours[, mean(significant)]
+> power_ours                                       # should be close to power_slow
+[1] 0.3041
+> 
+> 
+> # 3. Winner's curse -----
+> # With low power, only unusually large estimates reach significance, so the
+> # significant ones overstate the true effect.
+> curse <- data.table(
++   true_effect_pp               = 100 * lift,
++   mean_estimate_all_pp         = 100 * ours[, mean(estimate)],
++   mean_estimate_significant_pp = 100 * ours[significant == TRUE, mean(estimate)],
++   share_significant            = power_ours
++ )
+> curse
+   true_effect_pp mean_estimate_all_pp mean_estimate_significant_pp
+            <num>                <num>                        <num>
+1:            2.5             2.514265                      4.46521
+   share_significant
+               <num>
+1:            0.3041
+> 
+> 
+> # 4. Power for different designs -----
+> # CJ() creates all combinations of sample sizes and holdout shares
+> grid <- CJ(n_total = seq(from = 2000, to = 70000, by = 2000),
++            holdout_share = c(0.05, 0.10, 0.20, 0.50))
+> 
+> # For each combination (by = ...), simulate n_sims experiments and compute power
+> grid[, power := simulate_many(n_total = n_total, holdout_share = holdout_share,
++                               p0 = p_holdout, delta = lift)[, mean(p_value < alpha & estimate > 0)],
++      by = .(n_total, holdout_share)]
+> 
+> # Smallest sample with at least 80% power, per holdout share
+> needed <- grid[power >= 0.80, .(n_total_for_80pct_power = min(n_total)), by = holdout_share]
+> setorder(needed, -holdout_share)
+> needed
+   holdout_share n_total_for_80pct_power
+           <num>                   <num>
+1:          0.50                   12000
+2:          0.20                   18000
+3:          0.10                   30000
+4:          0.05                   54000
+> 
+> # Analytic check for the 50/50 design (power.prop.test() returns n per group)
+> analytic <- power.prop.test(p1 = p_holdout, p2 = p_holdout + lift, power = 0.80)
+> analytic_n_total <- ceiling(x = 2 * analytic$n)
+> analytic_n_total
+[1] 10128
+> 
+> 
+> # Save results -----
+> results <- list(
++   assumptions      = list(p_holdout = p_holdout, lift = lift, alpha = alpha,
++                           n_sims = n_sims, n_ours = n_ours, share_ours = share_ours),
++   power_slow       = power_slow,
++   power_ours       = power_ours,
++   ours             = ours,
++   curse            = curse,
++   grid             = grid,
++   needed           = needed,
++   analytic_n_total = analytic_n_total
++ )
+> saveRDS(object = results, file = here("outputs", "results", "power_results.rds"))
+> 
+> 
+> # Document R and package versions -----
+> sessionInfo()
+R version 4.6.1 (2026-06-24)
+Platform: aarch64-apple-darwin23
+Running under: macOS Tahoe 26.7.2
+
+Matrix products: default
+BLAS:   /Library/Frameworks/R.framework/Versions/4.6/Resources/lib/libRblas.0.dylib 
+LAPACK: /Library/Frameworks/R.framework/Versions/4.6/Resources/lib/libRlapack.dylib;  LAPACK version 3.12.1
+
+locale:
+[1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
+
+time zone: Europe/Berlin
+tzcode source: internal
+
+attached base packages:
+[1] stats     graphics  grDevices utils     datasets  methods   base     
+
+other attached packages:
+[1] data.table_1.18.4 here_1.0.2       
+
+loaded via a namespace (and not attached):
+[1] compiler_4.6.1  rprojroot_2.1.1 parallel_4.6.1  groundhog_3.4.0
+> 
+> proc.time()
+   user  system elapsed 
+  2.482   0.143   2.595 

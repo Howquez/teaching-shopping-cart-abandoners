@@ -2,7 +2,7 @@
 
 ## Overview
 
-This replication package evaluates a fictional cart abandonment email campaign. The code in this package simulates the raw data, cleans and merges four messy data exports, estimates the causal effect of the email against a randomized holdout, evaluates its economic value, and runs a simulation-based power analysis. One main file (`run_all.R`) runs all steps and renders a three-page PDF report with 3 figures and 1 table. The replicator should expect the code to run for less than one minute, plus the time groundhog needs to install packages on first use.
+This replication package evaluates a fictional cart abandonment email campaign. The code in this package simulates the raw data, cleans and merges four messy data exports, estimates the causal effect of the email against a randomized holdout, evaluates its economic value, and runs a simulation-based power analysis. One main file (`_run_all.R`) runs all steps and renders a three-page PDF report with 3 figures and 1 table. The replicator should expect the code to run for less than one minute, plus the time groundhog needs to install packages on first use.
 
 The package is designed as a teaching resource on computational reproducibility, data cleaning, causal inference with a holdout group, and statistical power. All data are simulated.
 
@@ -104,7 +104,7 @@ All scripts are in `scripts/` and are numbered in the order in which they run.
 - `scripts/03_power_simulation.R` runs a simulation-based power analysis and illustrates the winner's curse. Results are saved to `outputs/results/power_results.rds`.
 - `scripts/04_figures_tables.R` turns the saved results into figures (`outputs/figures/`) and tables (`outputs/tables/`).
 - `report/report.qmd` renders the report `report/report.pdf`. All numbers in the text are computed with inline code from the saved results.
-- `run_all.R` runs scripts 01 to 04 in fresh R sessions, renders the report, and writes all logs to `outputs/logs/`.
+- `_run_all.R` runs scripts 01 to 04 in fresh R sessions, renders the report, and writes all logs to `outputs/logs/`.
 
 ### License for Code
 
@@ -114,14 +114,14 @@ The code is licensed under the MIT license. See LICENSE.txt for details.
 
 1. Open `cart_abandonment.Rproj` in RStudio. This sets the working directory to the project root, which the scripts rely on.
 2. Install `knitr` and `rmarkdown` (see above), Quarto, and TinyTeX (`quarto install tinytex` in a terminal).
-3. Run `run_all.R`.
+3. Run `_run_all.R`.
 4. Compare `report/report.pdf` and the logs in `outputs/logs/` with the provided versions.
 
 Optional: To regenerate the raw data, run `scripts/00_simulate_raw_data.R` before step 3 and compare the checksums of the new files with `outputs/logs/data_checksums.txt`.
 
 ### Details on the logs
 
-`run_all.R` writes the following files to `outputs/logs/`. They document the last complete run on the author's machine.
+`_run_all.R` writes the following files to `outputs/logs/`. They document the last complete run on the author's machine.
 
 | File | Content |
 |---|---|
@@ -171,7 +171,7 @@ cart_abandonment/
 ├── README.md
 ├── LICENSE.txt
 ├── codebook.md            variable definitions for all data files
-├── run_all.R              runs the full pipeline
+├── _run_all.R             runs the full pipeline
 ├── scripts/               scripts, run in numerical order
 ├── report/report.qmd      Quarto report (code hidden, numbers inline)
 ├── data/

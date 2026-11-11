@@ -36,8 +36,8 @@ writeLines(text = paste(tools::md5sum(files = raw_files), basename(raw_files)),
 
 run_script(script = "scripts/01_read_data.R")
 run_script(script = "scripts/02_analyze.R")
-run_script(script = "scripts/03_power_simulation.log")
-run_script(script = "scripts/04_figures_tables.log")
+run_script(script = "scripts/03_power_simulation.R")
+run_script(script = "scripts/04_figures_tables.R")
 
 
 # Render the report -----

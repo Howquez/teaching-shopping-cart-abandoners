@@ -1,7 +1,7 @@
 quantity,estimate,ci_low,ci_high
-Incremental net revenue per treated customer (EUR),1.51356671484861,-1.35504998721417,4.38218341691138
-"Incremental net revenue, all treated (EUR)",10375.4998302872,-9288.86766235311,30039.8673229275
-Incremental gross profit after campaign cost (EUR),3536.48993211488,-4329.25706494124,11402.236929171
-ROI (incremental profit / campaign cost),5.76247728098757,-7.05423907862222,18.5791936405974
+Incremental net revenue per treated customer (EUR),1.5135667148486,-1.35504998721416,4.38218341691136
+"Incremental net revenue, all treated (EUR)",10375.4998302872,-9288.86766235307,30039.8673229274
+Incremental gross profit after campaign cost (EUR),3536.48993211486,-4329.25706494123,11402.236929171
+ROI (incremental profit / campaign cost),5.76247728098754,-7.0542390786222,18.5791936405973
 Vendor-attributed revenue (EUR),101466.24,,
-Vendor-attributed revenue / incremental revenue,9.77940741744403,,
+Vendor-attributed revenue / incremental revenue,9.77940741744408,,

@@ -1,16 +1,47 @@
 [31m
 
 processing file: report.qmd
-[39m  |                                                            |                                                    |   0%  |                                                            |....                                                |   8%                    |                                                            |........                                            |  15% [setup]          [31m
+[39m  |                                                            |                                                    |   0%  |                                                            |....                                                |   8%                    |                                                            |........                                            |  15% [setup]            |                                                            |............                                        |  23%                    |                                                            |................                                    |  31% [fig-rates]        |                                                            |....................                                |  38%                    |                                                            |........................                            |  46% [tbl-itt]          |                                                            |............................                        |  54%                    |                                                            |................................                    |  62% [fig-curse]        |                                                            |....................................                |  69%                    |                                                            |........................................            |  77% [unnamed-chunk-1]  |                                                            |............................................        |  85%                    |                                                            |................................................    |  92% [fig-power]        |                                                            |....................................................| 100%                                                                                                                              
+[31moutput file: report.knit.md
 
-[39m[31mError in `gzfile()`:
-! cannot open the connection
-Backtrace:
-    x
- 1. \-base::readRDS("../output/results/analysis_results.rds")
- 2.   \-base::gzfile(file, "rb")
-[39m[31m
-Quitting from report.qmd:23-44 [setup]
-[39m                                                                                                            
-[31mExecution halted
-[39m[33mWARN: Error encountered when rendering files[39m
+[39m[1mpandoc [22m
+  to: latex
+  output-file: report.tex
+  standalone: true
+  pdf-engine: xelatex
+  variables:
+    graphics: true
+    tables: true
+  default-image-extension: pdf
+  number-sections: true
+  
+[1mmetadata[22m
+  block-headings: true
+  engines:
+    - path: /Applications/quarto/share/extension-subtrees/julia-engine/_extensions/julia-engine/julia-engine.js
+  title: Does the Cart Reminder Email Pay Off?
+  subtitle: Evaluation of the cart abandonment campaign, September to October 2026
+  author: Marketing Analytics Team
+  date: today
+  date-format: D MMMM YYYY
+  documentclass: article
+  papersize: a4
+  geometry: margin=2.5cm
+  fontsize: 11pt
+  colorlinks: true
+  
+[1m[34m
+Rendering PDF[39m[22m
+[1m[34mrunning xelatex - 1[39m[22m
+  This is XeTeX, Version 3.141592653-2.6-0.999998 (TeX Live 2026) (preloaded format=xelatex)
+   restricted \write18 enabled.
+  entering extended mode
+  
+[1m[34mrunning xelatex - 2[39m[22m
+  This is XeTeX, Version 3.141592653-2.6-0.999998 (TeX Live 2026) (preloaded format=xelatex)
+   restricted \write18 enabled.
+  entering extended mode
+  
+
+Output created: report.pdf
+
