@@ -15,8 +15,8 @@ report/*.log
 # The raw data, the logs, the figures, the tables and report/report.pdf
 # stay in the repository, so that results can be checked without running
 # the code.
-data/processed/
-outputs/results/
+# data/processed/
+# outputs/results/
 
 # Operating system files -----
 .DS_Store
