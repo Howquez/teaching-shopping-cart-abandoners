@@ -1,4 +1,4 @@
-# README for "Does the Cart Reminder Email Pay Off?" (Hauke Roggenkamp)
+# README for Teaching Materials "Does the Cart Reminder Email Pay Off?"
 
 ## Overview
 
