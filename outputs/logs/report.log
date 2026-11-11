@@ -1,0 +1,16 @@
+[31m
+
+processing file: report.qmd
+[39m  |                                                            |                                                    |   0%  |                                                            |....                                                |   8%                    |                                                            |........                                            |  15% [setup]          [31m
+
+[39m[31mError in `gzfile()`:
+! cannot open the connection
+Backtrace:
+    x
+ 1. \-base::readRDS("../output/results/analysis_results.rds")
+ 2.   \-base::gzfile(file, "rb")
+[39m[31m
+Quitting from report.qmd:23-44 [setup]
+[39m                                                                                                            
+[31mExecution halted
+[39m[33mWARN: Error encountered when rendering files[39m

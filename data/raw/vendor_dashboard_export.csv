@@ -1,0 +1,13 @@
+metric,value,period
+Emails sent,7342,2026-09-01 to 2026-10-31
+Delivery rate,96.2%,2026-09-01 to 2026-10-31
+Open rate,58.9%,2026-09-01 to 2026-10-31
+Click rate (CTR),11.2%,2026-09-01 to 2026-10-31
+Click-to-open rate,19.0%,2026-09-01 to 2026-10-31
+Conversion rate (clickers),77.4%,2026-09-01 to 2026-10-31
+Conversion rate (openers),35.8%,2026-09-01 to 2026-10-31
+Attributed orders,1490,2026-09-01 to 2026-10-31
+Attributed revenue (EUR),146958,2026-09-01 to 2026-10-31
+Revenue per email (EUR),20.02,2026-09-01 to 2026-10-31
+Site-wide session conversion rate (benchmark),3.6%,2026-09-01 to 2026-10-31
+Uplift vs. site benchmark,10.0x,2026-09-01 to 2026-10-31

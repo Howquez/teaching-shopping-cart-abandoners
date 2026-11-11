@@ -1,0 +1,131 @@
+---
+title: "Does the Cart Reminder Email Pay Off?"
+subtitle: "Evaluation of the cart abandonment campaign, September to October 2026"
+author: "Marketing Analytics Team"
+date: today
+date-format: "D MMMM YYYY"
+format:
+  pdf:
+    documentclass: article
+    pdf-engine: xelatex
+    papersize: a4
+    geometry: margin=2.5cm
+    fontsize: 11pt
+    number-sections: true
+    colorlinks: true
+    fig-pos: "H"
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+```{r setup}
+# This report only reads saved results; all computation happens in scripts/.
+
+# Packages -----
+# groundhog loads the package versions that were available on the given date,
+# so that everyone runs the code with exactly the same versions.
+if (!requireNamespace("groundhog", quietly = TRUE)) {
+  install.packages("groundhog")
+}
+pkgs <- c("here", # makes it easier to use relative file paths (i.e., relative to the root, where .Rproj is located)
+          "data.table") # an alternative to base R and tidyverse which I like
+groundhog::groundhog.library(pkg = pkgs, date = "2026-06-30") # R-4.6.1
+rm(pkgs)
+
+
+# Read data -----
+# here() finds the project root, although Quarto renders from the report/ folder
+res <- readRDS(file = here("outputs", "results", "analysis_results.rds"))
+pow <- readRDS(file = here("outputs", "results", "power_results.rds"))
+
+itt <- res$itt
+inc <- res$incremental
+vv  <- res$vendor_view
+coh <- res$cohort
+
+
+# Helpers -----
+# fig() returns the path to a figure in outputs/figures/
+fig <- function(name) here("outputs", "figures", name)
+
+# Formatting helpers for numbers in the text, e.g. pct(0.268) -> "26.8%"
+pct  <- function(x, d = 1) sprintf(paste0("%.", d, "f%%"), 100 * x)        # percent
+pp   <- function(x, d = 1) sprintf(paste0("%.", d, "f pp"), x)             # percentage points
+eur  <- function(x) paste0("EUR ", format(round(x), big.mark = ",", scientific = FALSE))
+eur2 <- function(x) sprintf("EUR %.2f", x)                                  # with cents
+num  <- function(x) format(x, big.mark = ",", scientific = FALSE)          # 7621 -> "7,621"
+pval <- function(p) if (p < 0.001) "p < .001" else paste("p =", sub("^0", "", sprintf("%.3f", p)))
+```
+
+# Summary
+
+The email vendor reports that `r pct(vv[1, conversion_rate])` of customers who clicked the reminder email went on to buy. This number says little about the email itself, because customers who abandon a cart are already close to buying. In our randomized holdout, which received no email, `r pct(itt$holdout_rate)` of customers placed an order within seven days anyway.
+
+Compared with this holdout, the email raised the 7-day order rate by `r pp(itt$diff_pp)` (95% CI `r pp(itt$ci_low_pp)` to `r pp(itt$ci_high_pp)`, `r pval(itt$p_value)`). The estimate is plausible and economically attractive, but the holdout was too small to distinguish it from zero. We therefore recommend continuing the campaign with a larger holdout.
+
+# Data and design
+
+Between 1 September and 31 October 2026, `r num(coh$n_enrolled)` customers abandoned a cart and entered the campaign. A random 10% were assigned to a holdout that received no email. We excluded `r num(coh$n_excluded_window)` customers whose 7-day outcome window extended beyond the data export, which leaves `r num(coh$n_analysis)` customers (`r num(coh$n_treatment)` treatment, `r num(coh$n_holdout)` holdout). The outcome is whether a customer placed an order within seven days after abandoning the cart.
+
+# What the vendor reports
+
+@fig-rates compares the conversion rates that are typically reported. Clickers and openers are self-selected groups with high purchase intent, and the site-wide session conversion rate describes a different population. Only the comparison between all email recipients and the holdout isolates the effect of the email, because only the assignment to these groups was random.
+
+```{r}
+#| label: fig-rates
+#| fig-cap: "Conversion rates for different comparison groups. Only the blue and orange bars form a valid comparison."
+#| out-width: "75%"
+knitr::include_graphics(fig("01_conversion_rates.png"))
+```
+
+# Effect of the email
+
+```{r}
+#| label: tbl-itt
+#| tbl-cap: "Seven-day order rate by group (intention to treat)."
+tab <- res$by_group[, .(Group = c("Holdout (no email)", "Treatment (email)")[as.integer(group)],
+                        Customers = num(n), Orders = num(orders),
+                        `Order rate` = pct(order_rate),
+                        `Net revenue per customer` = sprintf("EUR %.2f", revenue_net_per_customer))]
+knitr::kable(tab, align = "lrrrr")
+```
+
+@tbl-itt shows that `r pct(itt$treatment_rate)` of the treatment group and `r pct(itt$holdout_rate)` of the holdout ordered within seven days, a relative lift of `r pct(itt$relative_lift)`. Adjusting for cart value, device, customer tenure and loyalty tier gives nearly the same estimate (`r pp(res$regression[model == "adjusted", estimate_pp])`), which is expected under random assignment.
+
+# Economic value
+
+Net of cancellations and returns, the email generated an estimated `r eur2(inc$rev_per_cust["estimate"])` of additional revenue per treated customer, or `r eur(inc$rev["estimate"])` in total (95% CI `r eur(inc$rev["ci_low"])` to `r eur(inc$rev["ci_high"])`). Assuming a gross margin of `r pct(res$assumptions$gross_margin, 0)` and campaign costs of `r eur(coh$cost_total)`, the incremental profit is `r eur(inc$profit["estimate"])`.
+
+The vendor attributes `r eur(inc$vendor_rev)` to the same campaign, about `r sprintf("%.0f", inc$vendor_rev / inc$rev["estimate"])` times our estimate. The vendor counts every purchase within 30 days after an email was opened, including purchases that would have happened anyway, and it values each purchase at the abandoned cart value instead of the actual order value.
+
+# How large should the holdout be?
+
+We simulated `r num(pow$assumptions$n_sims)` experiments with our design, assuming a true lift of `r pp(100 * pow$assumptions$lift)` on a baseline of `r pct(pow$assumptions$p_holdout, 0)`. Only `r pct(pow$power_ours, 0)` of them produced a significant result. @fig-curse shows a second problem with low power: the significant experiments overestimate the true effect, on average by a factor of `r sprintf("%.1f", pow$curse$mean_estimate_significant_pp / pow$curse$true_effect_pp)`.
+
+```{r}
+#| label: fig-curse
+#| fig-cap: "Estimated lifts in 10,000 simulated experiments with our design. Significant results (blue) overestimate the true effect (dashed line)."
+#| out-width: "70%"
+knitr::include_graphics(fig("02_winners_curse.png"))
+```
+
+```{r}
+n10 <- pow$needed[holdout_share == 0.10, n_total_for_80pct_power]
+n50 <- pow$needed[holdout_share == 0.50, n_total_for_80pct_power]
+n20 <- pow$needed[holdout_share == 0.20, n_total_for_80pct_power]
+```
+
+@fig-power shows how power depends on the total sample and the holdout share. With a 10% holdout, about `r num(n10)` enrolled customers are needed for 80% power. A 20% holdout reduces this to about `r num(n20)`, and a 50/50 split to about `r num(n50)`.
+
+```{r}
+#| label: fig-power
+#| fig-cap: "Simulated power to detect a 2.5 pp lift for different holdout shares. The dashed line marks 80% power."
+#| out-width: "70%"
+knitr::include_graphics(fig("03_power_curves.png"))
+```
+
+# Recommendation
+
+We recommend continuing the reminder email, because the point estimate implies a positive return at low cost. At the same time, we recommend raising the holdout to 20% for the next `r sprintf("%.0f", n20 / (coh$n_enrolled / 2))` months, which would give the campaign enough data to confirm or reject an effect of this size. Vendor-reported conversion rates should not be used to evaluate the campaign.

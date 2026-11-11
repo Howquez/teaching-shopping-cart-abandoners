@@ -1,0 +1,6 @@
+group,conversion_rate,n
+Clicked the email,0.76437587657784,713
+Opened the email,0.31246780010304,3882
+All email recipients,0.292778993435449,6855
+Holdout (no email),0.267624020887729,766
+Website sessions (per session),0.0357480862075162,166946

@@ -1,0 +1,7 @@
+.Rproj.user/
+.Rhistory
+.RData
+instructor_only/
+report/report_files/
+report/*.tex
+report/*.log

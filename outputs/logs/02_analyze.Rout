@@ -1,0 +1,357 @@
+
+R version 4.6.1 (2026-06-24) -- "Happy Hop"
+Copyright (C) 2026 The R Foundation for Statistical Computing
+Platform: aarch64-apple-darwin23
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> # This script answers two questions: Did the cart reminder email work, and did
+> # it pay off? It proceeds in four steps:
+> 
+> #   1. Vendor view: conversion rates as typically reported
+> #   2. Causal effect: treatment vs. randomized holdout (intention to treat)
+> #   3. Regression adjustment for precision
+> #   4. Economics: incremental revenue, profit and ROI vs. vendor claims
+> 
+> # This script only computes results. Figures and tables are produced by
+> # 04_figures_tables.R, and the report reads the same saved results.
+> 
+> # Input:  data/processed/analysis_data.csv, data/processed/sessions_clean.csv
+> # Output: outputs/results/analysis_results.rds
+> 
+> # Packages -----
+> # As before, groundhog loads the package versions that were available on the given date,
+> # so that everyone runs the code with exactly the same versions.
+> if (!requireNamespace("groundhog", quietly = TRUE)) {
++   install.packages("groundhog")
++ }
+groundhog says: No default repository found, setting to 'http://cran.r-project.org/'
+> pkgs <- c("here", # makes it easier to use relative file paths (i.e., relative to the root, where .Rproj is located)
++           "data.table") # an alternative to base R and tidyverse which I like
+> groundhog::groundhog.library(pkg = pkgs, date = "2026-06-30") # R-4.6.1
+[36mSuccessfully attached 'here_1.0.2'[0m
+[36mSuccessfully attached 'data.table_1.18.4'[0m
+[34m2 startup message(s) were suppressed, run show_startup() to see them[0m
+> rm(pkgs)
+> 
+> 
+> # Prep -----
+> dir.create(path = here("outputs", "results"), recursive = TRUE, showWarnings = FALSE)
+> 
+> # Business assumptions (change these and discuss how conclusions change)
+> assumptions <- list(gross_margin = 0.40,     # share of net revenue left after cost of goods
++                     cost_per_email = 0.002,  # EUR, variable sending cost
++                     fixed_cost_period = 600) # EUR, tool license and setup for Sep to Oct
+> 
+> 
+> # Read data -----
+> ad   <- fread(input = here("data", "processed", "analysis_data.csv"))
+> sess <- fread(input = here("data", "processed", "sessions_clean.csv"))
+> 
+> # Analysis sample: enrollments with a complete 7-day outcome window
+> a <- ad[full_window == TRUE]
+> a[, group := factor(x = group, levels = c("holdout", "treatment"))]
+> a[, .N, by = group]
+       group     N
+      <fctr> <int>
+1: treatment  6855
+2:   holdout   766
+> 
+> 
+> # 1. Vendor view -----
+> # These rates compare self-selected groups (clickers, openers) or the wrong
+> # population (all website sessions). None of them is a causal effect.
+> tg <- a[group == "treatment"]
+> vendor_view <- data.table(
++   group = c("Clicked the email", "Opened the email", "All email recipients",
++             "Holdout (no email)", "Website sessions (per session)"),
++   conversion_rate = c(tg[clicked == 1, mean(ordered_7d)],
++                       tg[opened == 1, mean(ordered_7d)],
++                       tg[, mean(ordered_7d)],
++                       a[group == "holdout", mean(ordered_7d)],
++                       sess[!is.na(customer_id), mean(purchased)]),
++   n = c(tg[clicked == 1, .N],
++         tg[opened == 1, .N],
++         tg[, .N],
++         a[group == "holdout", .N],
++         sess[!is.na(customer_id), .N])
++ )
+> vendor_view
+                            group conversion_rate      n
+                           <char>           <num>  <int>
+1:              Clicked the email      0.76437588    713
+2:               Opened the email      0.31246780   3882
+3:           All email recipients      0.29277899   6855
+4:             Holdout (no email)      0.26762402    766
+5: Website sessions (per session)      0.03574809 166946
+> 
+> 
+> # 2. Causal effect: treatment vs. holdout (intention to treat) -----
+> # Everyone assigned to treatment counts, including bounced emails and
+> # non-openers, because only the assignment was randomized.
+> by_group <- a[, .(n = .N,
++                   orders = sum(ordered_7d),
++                   order_rate = mean(ordered_7d),
++                   revenue_net_per_customer = mean(revenue_net_7d)),
++               by = group]
+> setorder(by_group, group)
+> by_group
+       group     n orders order_rate revenue_net_per_customer
+      <fctr> <int>  <int>      <num>                    <num>
+1:   holdout   766    205   0.267624                 18.45333
+2: treatment  6855   2007   0.292779                 19.96690
+> 
+> # Compare the two order rates with a test for two proportions
+> n_t      <- a[group == "treatment", .N]
+> n_c      <- a[group == "holdout", .N]
+> orders_t <- a[group == "treatment", sum(ordered_7d)]
+> orders_c <- a[group == "holdout", sum(ordered_7d)]
+> pt <- prop.test(x = c(orders_t, orders_c), n = c(n_t, n_c), correct = FALSE)
+> pt
+
+	2-sample test for equality of proportions without continuity correction
+
+data:  c(orders_t, orders_c) out of c(n_t, n_c)
+X-squared = 2.1164, df = 1, p-value = 0.1457
+alternative hypothesis: two.sided
+95 percent confidence interval:
+ -0.007995784  0.058305729
+sample estimates:
+  prop 1   prop 2 
+0.292779 0.267624 
+
+> 
+> rate_t <- orders_t / n_t
+> rate_c <- orders_c / n_c
+> itt <- data.table(outcome        = "Ordered within 7 days",
++                   holdout_rate   = rate_c,
++                   treatment_rate = rate_t,
++                   diff_pp        = 100 * (rate_t - rate_c),
++                   ci_low_pp      = 100 * pt$conf.int[1],
++                   ci_high_pp     = 100 * pt$conf.int[2],
++                   relative_lift  = rate_t / rate_c - 1,
++                   p_value        = pt$p.value)
+> itt
+                 outcome holdout_rate treatment_rate  diff_pp  ci_low_pp
+                  <char>        <num>          <num>    <num>      <num>
+1: Ordered within 7 days     0.267624       0.292779 2.515497 -0.7995784
+   ci_high_pp relative_lift   p_value
+        <num>         <num>     <num>
+1:   5.830573     0.0939937 0.1457306
+> 
+> 
+> # 3. Regression adjustment (linear probability model) -----
+> # Randomization makes covariates unnecessary for unbiasedness, but adjusting
+> # for strong predictors of the outcome can shrink the standard error.
+> m0 <- lm(formula = ordered_7d ~ treated, data = a)
+> m1 <- lm(formula = ordered_7d ~ treated + log(abandoned_cart_value) + device +
++            new_customer + loyalty_tier,
++          data = a)
+> summary(object = m0)
+
+Call:
+lm(formula = ordered_7d ~ treated, data = a)
+
+Residuals:
+    Min      1Q  Median      3Q     Max 
+-0.2928 -0.2928 -0.2928  0.7072  0.7324 
+
+Coefficients:
+            Estimate Std. Error t value Pr(>|t|)    
+(Intercept)  0.26762    0.01640  16.319   <2e-16 ***
+treated      0.02515    0.01729   1.455    0.146    
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Residual standard error: 0.4539 on 7619 degrees of freedom
+Multiple R-squared:  0.0002777,	Adjusted R-squared:  0.0001465 
+F-statistic: 2.116 on 1 and 7619 DF,  p-value: 0.1458
+
+> summary(object = m1)
+
+Call:
+lm(formula = ordered_7d ~ treated + log(abandoned_cart_value) + 
+    device + new_customer + loyalty_tier, data = a)
+
+Residuals:
+    Min      1Q  Median      3Q     Max 
+-0.4543 -0.3109 -0.2549  0.6376  0.8780 
+
+Coefficients:
+                           Estimate Std. Error t value Pr(>|t|)    
+(Intercept)                0.521307   0.043127  12.088  < 2e-16 ***
+treated                    0.025301   0.017160   1.474 0.140419    
+log(abandoned_cart_value) -0.057225   0.008618  -6.640 3.34e-11 ***
+devicemobile               0.041074   0.010977   3.742 0.000184 ***
+devicetablet               0.007632   0.021994   0.347 0.728605    
+new_customer              -0.072793   0.014216  -5.120 3.12e-07 ***
+loyalty_tiernone          -0.042859   0.017924  -2.391 0.016818 *  
+loyalty_tiersilver         0.013321   0.019397   0.687 0.492267    
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Residual standard error: 0.4503 on 7613 degrees of freedom
+Multiple R-squared:  0.01659,	Adjusted R-squared:  0.01569 
+F-statistic: 18.35 on 7 and 7613 DF,  p-value: < 2.2e-16
+
+> 
+> # Collect the treatment effect from both models in one table
+> coef_m0 <- summary(object = m0)$coefficients["treated", ]
+> coef_m1 <- summary(object = m1)$coefficients["treated", ]
+> ci_m0   <- confint(object = m0, parm = "treated")
+> ci_m1   <- confint(object = m1, parm = "treated")
+> 
+> regression <- data.table(model       = c("unadjusted", "adjusted"),
++                          estimate_pp = 100 * c(coef_m0["Estimate"], coef_m1["Estimate"]),
++                          se_pp       = 100 * c(coef_m0["Std. Error"], coef_m1["Std. Error"]),
++                          ci_low_pp   = 100 * c(ci_m0[1], ci_m1[1]),
++                          ci_high_pp  = 100 * c(ci_m0[2], ci_m1[2]),
++                          p_value     = c(coef_m0["Pr(>|t|)"], coef_m1["Pr(>|t|)"]))
+> regression
+        model estimate_pp    se_pp  ci_low_pp ci_high_pp   p_value
+       <char>       <num>    <num>      <num>      <num>     <num>
+1: unadjusted    2.515497 1.729114 -0.8740425   5.905037 0.1457687
+2:   adjusted    2.530050 1.716003 -0.8337892   5.893890 0.1404192
+> 
+> 
+> # 4. Economics -----
+> # Difference in net revenue per customer between treatment and holdout,
+> # tested with a Welch t-test (allows for unequal variances)
+> rev_t <- a[group == "treatment", revenue_net_7d]
+> rev_c <- a[group == "holdout", revenue_net_7d]
+> tt <- t.test(x = rev_t, y = rev_c)
+> tt
+
+	Welch Two Sample t-test
+
+data:  rev_t and rev_c
+t = 1.0354, df = 974.89, p-value = 0.3007
+alternative hypothesis: true difference in means is not equal to 0
+95 percent confidence interval:
+ -1.355050  4.382183
+sample estimates:
+mean of x mean of y 
+ 19.96690  18.45333 
+
+> 
+> # Campaign cost
+> emails_sent <- a[group == "treatment" & !is.na(email_sent_at), .N]
+> cost_total  <- emails_sent * assumptions$cost_per_email + assumptions$fixed_cost_period
+> 
+> # Incremental revenue and profit (estimate and 95% confidence interval)
+> incr_rev_per_cust <- c(estimate = unname(obj = tt$estimate[1] - tt$estimate[2]),
++                        ci_low   = tt$conf.int[1],
++                        ci_high  = tt$conf.int[2])
+> incr_rev    <- incr_rev_per_cust * n_t
+> incr_profit <- incr_rev * assumptions$gross_margin - cost_total
+> 
+> # What the vendor claims for the same customers
+> vendor_rev <- tg[, sum(attributed_revenue_eur, na.rm = TRUE)]
+> 
+> economics <- data.table(
++   quantity = c("Incremental net revenue per treated customer (EUR)",
++                "Incremental net revenue, all treated (EUR)",
++                "Incremental gross profit after campaign cost (EUR)",
++                "ROI (incremental profit / campaign cost)",
++                "Vendor-attributed revenue (EUR)",
++                "Vendor-attributed revenue / incremental revenue"),
++   estimate = c(incr_rev_per_cust["estimate"], 
++                incr_rev["estimate"],
++                incr_profit["estimate"], 
++                incr_profit["estimate"] / cost_total,
++                vendor_rev, vendor_rev / incr_rev["estimate"]),
++   ci_low   = c(incr_rev_per_cust["ci_low"], 
++                incr_rev["ci_low"], 
++                incr_profit["ci_low"],
++                incr_profit["ci_low"] / cost_total, 
++                NA, 
++                NA),
++   ci_high  = c(incr_rev_per_cust["ci_high"], 
++                incr_rev["ci_high"], 
++                incr_profit["ci_high"],
++                incr_profit["ci_high"] / cost_total, 
++                NA, 
++                NA))
+> economics
+                                             quantity     estimate       ci_low
+                                               <char>        <num>        <num>
+1: Incremental net revenue per treated customer (EUR) 1.513567e+00    -1.355050
+2:         Incremental net revenue, all treated (EUR) 1.037550e+04 -9288.867662
+3: Incremental gross profit after campaign cost (EUR) 3.536490e+03 -4329.257065
+4:           ROI (incremental profit / campaign cost) 5.762477e+00    -7.054239
+5:                    Vendor-attributed revenue (EUR) 1.014662e+05           NA
+6:    Vendor-attributed revenue / incremental revenue 9.779407e+00           NA
+        ci_high
+          <num>
+1:     4.382183
+2: 30039.867323
+3: 11402.236929
+4:    18.579194
+5:           NA
+6:           NA
+> 
+> 
+> # Save results -----
+> # One list with everything the figures, tables and the report need
+> results <- list(
++   assumptions = assumptions,
++   cohort      = list(n_enrolled        = ad[, .N],
++                      n_analysis        = a[, .N],
++                      n_treatment       = n_t,
++                      n_holdout         = n_c,
++                      n_excluded_window = ad[full_window == FALSE, .N],
++                      emails_sent       = emails_sent,
++                      cost_total        = cost_total),
++   vendor_view = vendor_view,
++   by_group    = by_group,
++   itt         = itt,
++   regression  = regression,
++   economics   = economics,
++   incremental = list(rev_per_cust = incr_rev_per_cust,
++                      rev          = incr_rev,
++                      profit       = incr_profit,
++                      vendor_rev   = vendor_rev)
++ )
+> saveRDS(object = results, file = here("outputs", "results", "analysis_results.rds"))
+> 
+> 
+> # Document R and package versions -----
+> sessionInfo()
+R version 4.6.1 (2026-06-24)
+Platform: aarch64-apple-darwin23
+Running under: macOS Tahoe 26.7.2
+
+Matrix products: default
+BLAS:   /Library/Frameworks/R.framework/Versions/4.6/Resources/lib/libRblas.0.dylib 
+LAPACK: /Library/Frameworks/R.framework/Versions/4.6/Resources/lib/libRlapack.dylib;  LAPACK version 3.12.1
+
+locale:
+[1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
+
+time zone: Europe/Berlin
+tzcode source: internal
+
+attached base packages:
+[1] stats     graphics  grDevices utils     datasets  methods   base     
+
+other attached packages:
+[1] data.table_1.18.4 here_1.0.2       
+
+loaded via a namespace (and not attached):
+[1] compiler_4.6.1  rprojroot_2.1.1 parallel_4.6.1  groundhog_3.4.0
+> 
+> proc.time()
+   user  system elapsed 
+  0.749   0.042   0.661 
