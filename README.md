@@ -4,6 +4,8 @@
 
 This replication package evaluates a fictional cart abandonment email campaign. The code in this package simulates the raw data, cleans and merges four messy data exports, estimates the causal effect of the email against a randomized holdout, evaluates its economic value, and runs a simulation-based power analysis. One main file (`_run_all.R`) runs all steps and renders a three-page PDF report with 3 figures and 1 table. The replicator should expect the code to run for less than one minute, plus the time groundhog needs to install packages on first use.
 
+All results are computed by plain R scripts with few dependencies (`data.table` and `here`, pinned with `groundhog`). The report is written in Quarto, which combines text and code in one document (literate programming): every number in the text is computed directly from the saved results instead of being copied by hand. Quarto adds dependencies of its own (Quarto, `knitr`, `rmarkdown`, and LaTeX), so it does not make the analysis more computationally reproducible. Its benefit is traceability: each number in the report can be traced back to the code that produced it, which rules out copy and paste errors. If the report cannot be rendered, all results can still be reproduced with the R scripts alone, and the figures and tables are available in `outputs/`.
+
 The package is designed as a teaching resource on computational reproducibility, data cleaning, causal inference with a holdout group, and statistical power. All data are simulated.
 
 ## Data Availability and Provenance Statements
@@ -64,6 +66,8 @@ All files are in CSV format. `orders.csv` uses `;` as separator and German numbe
 - A LaTeX distribution for the PDF report; we used TinyTeX, installed with `quarto install tinytex`
 
 The exact versions of all packages are recorded by `sessionInfo()` at the end of each log file in `outputs/logs/`. groundhog works best with the R version listed above.
+
+**Note for macOS users:** If Xcode is installed but its license has not been accepted, rendering the report may stop with the message "You have not agreed to the Xcode license agreements". This is a one-time macOS requirement, not an error in the code. Run `sudo xcodebuild -license` in a terminal, accept the license, and rerun `run_all.R`. If packages need to be compiled from source, the Xcode Command Line Tools are required as well (`xcode-select --install`).
 
 ### Controlled Randomness
 
