@@ -1,0 +1,23 @@
+<component name="InspectionProjectProfileManager">
+  <profile version="1.0">
+    <option name="myName" value="Project Default" />
+    <inspection_tool class="Eslint" enabled="true" level="WARNING" enabled_by_default="true" />
+    <inspection_tool class="PyPackageRequirementsInspection" enabled="true" level="WARNING" enabled_by_default="true">
+      <option name="ignoredPackages">
+        <list>
+          <option value="otree" />
+          <option value="psycopg2-binary" />
+          <option value="boto3" />
+          <option value="httpx" />
+          <option value="python-dotenv" />
+          <option value="pandas" />
+          <option value="sentry-sdk" />
+          <option value="psycopg2" />
+          <option value="numpy" />
+          <option value="requests" />
+          <option value="httplib2" />
+        </list>
+      </option>
+    </inspection_tool>
+  </profile>
+</component>

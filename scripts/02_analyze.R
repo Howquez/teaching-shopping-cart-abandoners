@@ -196,3 +196,6 @@ saveRDS(object = results, file = here("outputs", "results", "analysis_results.rd
 
 # Document R and package versions -----
 sessionInfo()
+
+
+

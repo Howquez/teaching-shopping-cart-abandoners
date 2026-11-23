@@ -23,15 +23,6 @@ run_script <- function(script) {
           args = c("CMD", "BATCH", "--no-save", "--no-restore", script, log_file))
 }
 
-
-# Document the raw data -----
-# md5sum() computes a hash/fingerprint (checksum) for each file. If anyone else gets
-# the same fingerprints, they have exactly the same data, byte for byte.
-raw_files <- list.files(path = here("data", "raw"), full.names = TRUE)
-writeLines(text = paste(tools::md5sum(files = raw_files), basename(raw_files)),
-           con = here("outputs", "logs", "data_checksums.txt"))
-
-
 # Run full pipeline -----
 
 run_script(script = "scripts/01_read_data.R")

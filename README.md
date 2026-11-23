@@ -64,8 +64,8 @@ Rerunning the simulation with the same seed reproduces the provided raw data exa
 | `data/raw/orders.csv` | Simulated | ERP export in German format, one row per order | Yes |
 | `data/raw/campaign_log.csv` | Simulated | Email tool export, one row per enrollment | Yes |
 | `data/raw/vendor_dashboard_export.csv` | Simulated | Summary metrics as reported by the email vendor | Yes |
-| `data/processed/*_clean.csv` | All of the above | Cleaned versions of the four exports, created by `01_read_data.R` | Yes (but can be recreated by the code) |
-| `data/processed/analysis_data.csv` | All of the above | One row per enrolled customer; input for all analyses | Yes (but can be recreated by the code) |
+| `data/processed/*_clean.csv` | All of the above | Cleaned versions of the four exports, created by `01_read_data.R` | Yes (and can be recreated by the code) |
+| `data/processed/analysis_data.csv` | All of the above | One row per enrolled customer; input for all analyses | Yes (and can be recreated by the code) |
 
 All files are in CSV format. `orders.csv` uses `;` as separator and German number format.
 
